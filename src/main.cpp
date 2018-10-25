@@ -33,6 +33,7 @@
 #endif
 #include <pcl/common/common_headers.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/io/ply_io.h>
 
 // Sample includes
 #include <thread>
@@ -57,8 +58,36 @@ void closeZED();
 shared_ptr<pcl::visualization::PCLVisualizer> createRGBVisualizer(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud);
 inline float convertColor(float colorIn);
 
-// Main process
+void keyboardEvent(const pcl::visualization::KeyboardEvent &event, void *nothing) {
 
+    if(event.getKeySym() == "space" && event.keyDown()){
+        
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+        cloud->points.resize(zed.getResolution().area());
+
+        float *data = data_cloud.getPtr<float>();
+        int index = 0;
+
+        for (auto &it : cloud->points) {
+            float X = data[index];
+            if (!isValidMeasure(X)) // Checking if it's a valid point
+                it.x = it.y = it.z = it.rgb = 0;
+            else {
+                it.x = X;
+                it.y = data[index + 1];
+                it.z = data[index + 2];
+                it.rgb = convertColor(data[index + 3]); // Convert a 32bits float into a pcl .rgb format
+            }
+                index += 4;
+        }
+
+        pcl::io::savePLYFileASCII("test.ply", *cloud);
+        std::cout << "---------- SAVE DATA !!!!! ----------" << std::endl;
+    }
+        //next_iteration = true;
+}
+
+// Main process
 int main(int argc, char **argv) {
 
     if (argc > 2) {
@@ -92,6 +121,7 @@ int main(int argc, char **argv) {
 
     // Create the PCL point cloud visualizer
     shared_ptr<pcl::visualization::PCLVisualizer> viewer = createRGBVisualizer(p_pcl_point_cloud);
+    viewer->registerKeyboardCallback(&keyboardEvent, (void*)NULL);
 
     // Start ZED callback
     startZED();
@@ -122,9 +152,13 @@ int main(int argc, char **argv) {
             mutex_input.unlock();
             viewer->updatePointCloud(p_pcl_point_cloud);
             viewer->spinOnce(10);
-        } else
+
+        } else {
             sleep_ms(1);
+        }
     }
+
+    //pcl::io::savePLYFileASCII("test.ply", *p_pcl_point_cloud);
 
     // Close the viewer
     viewer->close();
@@ -153,14 +187,51 @@ void startZED() {
  *  This function loops to get the point cloud from the ZED. It can be considered as a callback.
  **/
 void run() {
+
+    // Track the camera position during 1000 frames
+    /*Pose zed_pose;
+
+    // Check if the camera is a ZED M and therefore if an IMU is available
+    bool zed_mini = (zed.getCameraInformation().camera_model == MODEL_ZED_M);
+    IMUData imu_data;
+    */
+
     while (!stop_signal) {
+        /*if (zed.grab(SENSING_MODE_STANDARD) == SUCCESS) {
+
+            zed.getPosition(zed_pose, REFERENCE_FRAME_WORLD); // Get the pose of the left eye of the camera with reference to the world frame
+
+            // Display the translation and timestamp
+            printf("\nTranslation: Tx: %.3f, Ty: %.3f, Tz: %.3f, Timestamp: %llu\n", zed_pose.getTranslation().tx,
+                    zed_pose.getTranslation().ty, zed_pose.getTranslation().tz, zed_pose.timestamp);
+
+            // Display the orientation quaternion
+            printf("Orientation: Ox: %.3f, Oy: %.3f, Oz: %.3f, Ow: %.3f\n", zed_pose.getOrientation().ox,
+                    zed_pose.getOrientation().oy, zed_pose.getOrientation().oz, zed_pose.getOrientation().ow);
+
+            
+            if (zed_mini) { // Display IMU data
+
+                 // Get IMU data
+                zed.getIMUData(imu_data, TIME_REFERENCE_IMAGE);
+
+                // Filtered orientation quaternion
+                printf("IMU Orientation: Ox: %.3f, Oy: %.3f, Oz: %.3f, Ow: %.3f\n", imu_data.getOrientation().ox,
+                        imu_data.getOrientation().oy, imu_data.getOrientation().oz, zed_pose.getOrientation().ow);
+                // Raw acceleration
+                printf("IMU Acceleration: x: %.3f, y: %.3f, z: %.3f\n", imu_data.linear_acceleration.x,
+                        imu_data.linear_acceleration.y, imu_data.linear_acceleration.z);
+            }
+         //}*/
+
         if (zed.grab(SENSING_MODE_STANDARD) == SUCCESS) {
             mutex_input.lock(); // To prevent from data corruption
             zed.retrieveMeasure(data_cloud, MEASURE_XYZRGBA);
             mutex_input.unlock();
             has_data = true;
-        } else
+        } else {
             sleep_ms(1);
+        }
     }
 }
 
