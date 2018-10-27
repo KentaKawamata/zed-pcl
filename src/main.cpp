@@ -35,6 +35,9 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/io/ply_io.h>
 
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+
 // Sample includes
 #include <thread>
 #include <mutex>
@@ -188,16 +191,24 @@ void startZED() {
  **/
 void run() {
 
+    // Enable positional tracking with default parameters
+    TrackingParameters tracking_parameters;
+    ERROR_CODE err = zed.enableTracking(tracking_parameters);
+    if (err != SUCCESS) {
+        exit(-1);
+    }
+
     // Track the camera position during 1000 frames
-    /*Pose zed_pose;
+    Pose zed_pose;
 
     // Check if the camera is a ZED M and therefore if an IMU is available
     bool zed_mini = (zed.getCameraInformation().camera_model == MODEL_ZED_M);
     IMUData imu_data;
-    */
+
+
 
     while (!stop_signal) {
-        /*if (zed.grab(SENSING_MODE_STANDARD) == SUCCESS) {
+        if (zed.grab(SENSING_MODE_STANDARD) == SUCCESS) {
 
             zed.getPosition(zed_pose, REFERENCE_FRAME_WORLD); // Get the pose of the left eye of the camera with reference to the world frame
 
@@ -208,6 +219,8 @@ void run() {
             // Display the orientation quaternion
             printf("Orientation: Ox: %.3f, Oy: %.3f, Oz: %.3f, Ow: %.3f\n", zed_pose.getOrientation().ox,
                     zed_pose.getOrientation().oy, zed_pose.getOrientation().oz, zed_pose.getOrientation().ow);
+
+
 
             
             if (zed_mini) { // Display IMU data
@@ -222,9 +235,9 @@ void run() {
                 printf("IMU Acceleration: x: %.3f, y: %.3f, z: %.3f\n", imu_data.linear_acceleration.x,
                         imu_data.linear_acceleration.y, imu_data.linear_acceleration.z);
             }
-         //}*/
+         //}
 
-        if (zed.grab(SENSING_MODE_STANDARD) == SUCCESS) {
+        //if (zed.grab(SENSING_MODE_STANDARD) == SUCCESS) {
             mutex_input.lock(); // To prevent from data corruption
             zed.retrieveMeasure(data_cloud, MEASURE_XYZRGBA);
             mutex_input.unlock();
