@@ -35,15 +35,8 @@ private:
     
     // Enable positional tracking with default parameters
     sl::TrackingParameters tracking_parameters;
-    sl::ERROR_CODE err = zed.enableTracking(tracking_parameters);
-    if (err != SUCCESS) {
-        exit(-1);
-    }
-
-    // Track the camera position during 1000 frames
     sl::Pose zed_pose;
 
-    // Check if the camera is a ZED M and therefore if an IMU is available
     bool zed_mini = (zed.getCameraInformation().camera_model == sl::MODEL_ZED_M);
     sl::IMUData imu_data;
 
@@ -56,6 +49,9 @@ public:
     void startZED();
     void closeZED();
     void runZED();
+    void setparam();
+    void setIMU();
+    void saveRotation();
     std::shared_ptr<pcl::visualization::PCLVisualizer> createRGBVisualizer(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud);
     inline float convertColor(float colorIn);
 
