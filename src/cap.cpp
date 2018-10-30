@@ -46,6 +46,8 @@ sl::Mat data_cloud;
 std::thread zed_callback;
 std::mutex mutex_input;
 int signal=0;
+bool stop_signal;
+bool has_data;
 
 void keyboardEvent(const pcl::visualization::KeyboardEvent &event, void *nothing) {
 
@@ -58,9 +60,6 @@ CaptureZED::CaptureZED(){
     startZED();
     sl::InitParameters init_params;
     setparam();
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr p_pcl_point_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    bool stop_signal;
-    bool has_data;
 }
 
 CaptureZED::~CaptureZED(){
@@ -84,9 +83,10 @@ void CaptureZED::runZED() {
     if (err != sl::SUCCESS) {
         std::cout << toString(err) << std::endl;
         zed.close();
-        return 1;
+        std::exit(-1);
     }
 
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr p_pcl_point_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     p_pcl_point_cloud->points.resize(zed.getResolution().area());
 
     // Create the PCL point cloud visualizer
@@ -102,13 +102,16 @@ void CaptureZED::runZED() {
             // Check and adjust points for PCL format
             for (auto &it : p_pcl_point_cloud->points) {
                 float X = p_data_cloud[index];
-                if (!isValidMeasure(X)) // Checking if it's a valid point
+
+                // Checking if it's a valid point
+                if (!isValidMeasure(X)) {
                     it.x = it.y = it.z = it.rgb = 0;
-                else {
+                } else {
                     it.x = X;
                     it.y = p_data_cloud[index + 1];
                     it.z = p_data_cloud[index + 2];
-                    it.rgb = convertColor(p_data_cloud[index + 3]); // Convert a 32bits float into a pcl .rgb format
+                    // Convert a 32bits float into a pcl .rgb format
+                    it.rgb = convertColor(p_data_cloud[index + 3]);
                 }
                 index += 4;
             }
@@ -167,8 +170,9 @@ void CaptureZED::startZED() {
     zed_callback = std::thread(run);
 
     //Wait for data to be grabbed
-    while (!has_data)
+    while (!has_data) {
         sleep_ms(1);
+    }
 }
 
 /**
@@ -176,14 +180,10 @@ void CaptureZED::startZED() {
  **/
 void CaptureZED::run() {
 
-    // Enable positional tracking with default parameters
-    sl::TrackingParameters tracking_parameters;
     sl::ERROR_CODE err = zed.enableTracking(tracking_parameters);
     if (err != sl::SUCCESS) {
         exit(-1);
     }
-    // Track the camera position during 1000 frames
-    sl::Pose zed_pose;
 
     // Check if the camera is a ZED M and therefore if an IMU is available
     bool zed_mini = (zed.getCameraInformation().camera_model == sl::MODEL_ZED_M);
