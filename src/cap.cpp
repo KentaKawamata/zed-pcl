@@ -29,8 +29,11 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/io/ply_io.h>
 
+#include <iostream>
 #include <thread>
 #include <mutex>
+#include <vector>
+#include <fstream>
 
 #include "cap.hpp"
 
@@ -42,6 +45,7 @@ sl::Camera zed;
 sl::Mat data_cloud;
 std::thread zed_callback;
 std::mutex mutex_input;
+int signal=0;
 
 void keyboardEvent(const pcl::visualization::KeyboardEvent &event, void *nothing) {
 
@@ -50,7 +54,7 @@ void keyboardEvent(const pcl::visualization::KeyboardEvent &event, void *nothing
     }
 }
 
-CaptureZED(){
+CaptureZED::CaptureZED(){
     startZED();
     sl::InitParameters init_params;
     setparam();
@@ -59,7 +63,7 @@ CaptureZED(){
     bool has_data;
 }
 
-~CaptureZED(){
+CaptureZED::~CaptureZED(){
    closeZED();
 }
 
@@ -115,6 +119,7 @@ void CaptureZED::runZED() {
             viewer->spinOnce(10);
 
             if(signal==1){
+                saveRotation();
                 pcl::io::savePLYFileASCII("test.ply", *cloud);
                 std::cout << "---------- SAVE DATA !!!!! ----------" << std::endl;
                 signal=0;
@@ -129,6 +134,25 @@ void CaptureZED::runZED() {
 }
 
 void CaptureZED::saveRotation() {
+
+    std::vector<float> R(9);
+
+    R[0] = zed_pose.getRotation().r00;
+    R[1] = zed_pose.getRotation().r01;
+    R[2] = zed_pose.getRotation().r02;
+    R[3] = zed_pose.getRotation().r10;
+    R[4] = zed_pose.getRotation().r11;
+    R[5] = zed_pose.getRotation().r12;
+    R[6] = zed_pose.getRotation().r20;
+    R[7] = zed_pose.getRotation().r21;
+    R[8] = zed_pose.getRotation().r22;
+
+    std::ofstream myfile;
+    myfile.open("example.csv");
+    myfile << R[0] << "," << R[1] << "," R[2] << "," \
+           << R[3] << "," << R[4] << "," R[5] << "," \
+           << R[6] << "," << R[7] << "," R[8] << "\n" << std::endl;
+    myfile.close();
 
 }
 
@@ -147,14 +171,6 @@ void CaptureZED::startZED() {
         sleep_ms(1);
 }
 
-void CaptureZED::setIMU() {
-
-    sl::ERROR_CODE err = zed.enableTracking(tracking_parameters);
-    if (err != sl::SUCCESS) {
-        exit(-1);
-    }
-}
-
 /**
  *  This function loops to get the point cloud from the ZED. It can be considered as a callback.
  **/
@@ -162,7 +178,10 @@ void CaptureZED::run() {
 
     // Enable positional tracking with default parameters
     sl::TrackingParameters tracking_parameters;
-
+    sl::ERROR_CODE err = zed.enableTracking(tracking_parameters);
+    if (err != sl::SUCCESS) {
+        exit(-1);
+    }
     // Track the camera position during 1000 frames
     sl::Pose zed_pose;
 
@@ -171,9 +190,11 @@ void CaptureZED::run() {
     sl::IMUData imu_data;
 
     while (!stop_signal) {
+
         if (zed.grab(sl::SENSING_MODE_STANDARD) == SUCCESS) {
 
-            zed.getPosition(zed_pose, REFERENCE_FRAME_WORLD); // Get the pose of the left eye of the camera with reference to the world frame
+            // Get the pose of the left eye of the camera with reference to the world frame
+            zed.getPosition(zed_pose, REFERENCE_FRAME_WORLD);
 
             // Display the translation and timestamp
             printf("\nTranslation: Tx: %.3f, Ty: %.3f, Tz: %.3f, Timestamp: %llu\n", zed_pose.getTranslation().tx,

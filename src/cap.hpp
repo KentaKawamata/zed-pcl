@@ -29,10 +29,7 @@ private:
     std::mutex mutex_input;
     bool stop_signal;
     bool has_data;
-    int signal=0;
 
-    //pcl::PointCloud<pcl::PointXYZRGB>::Ptr p_pcl_point_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    
     // Enable positional tracking with default parameters
     sl::TrackingParameters tracking_parameters;
     sl::Pose zed_pose;
