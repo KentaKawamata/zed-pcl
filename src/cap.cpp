@@ -42,18 +42,19 @@
 #include <thread>
 #include <mutex>
 
+#include "cap.hpp"
+
 // Namespace
 using namespace sl;
 using namespace std;
 
 // Global instance (ZED, Mat, callback)
-Camera zed;
-Mat data_cloud;
+sl::Camera zed;
+sl::Mat data_cloud;
 std::thread zed_callback;
 std::mutex mutex_input;
 bool stop_signal;
 bool has_data;
-int signal;
 
 // Sample functions
 void startZED();
@@ -65,14 +66,18 @@ inline float convertColor(float colorIn);
 void keyboardEvent(const pcl::visualization::KeyboardEvent &event, void *nothing) {
 
     if(event.getKeySym() == "space" && event.keyDown()){
-        signal = 1;
+        
+
+        pcl::io::savePLYFileASCII("test.ply", *cloud);
+        std::cout << "---------- SAVE DATA !!!!! ----------" << std::endl;
     }
+        //next_iteration = true;
 }
 
-// Main process
-int main(int argc, char **argv) {
+// Main processvo
+void CaptureZED::runZED() {
 
-    InitParameters init_params;
+    sl::InitParameters init_params;
     init_params.camera_resolution = RESOLUTION_VGA;
     init_params.camera_fps = 30;
     init_params.coordinate_units = UNIT_METER;
@@ -80,7 +85,7 @@ int main(int argc, char **argv) {
     init_params.depth_mode = DEPTH_MODE_PERFORMANCE;
 
     // Open the camera
-    ERROR_CODE err = zed.open(init_params);
+    sl::ERROR_CODE err = zed.open(init_params);
     if (err != SUCCESS) {
         cout << toString(err) << endl;
         zed.close();
@@ -98,7 +103,6 @@ int main(int argc, char **argv) {
     // Start ZED callback
     startZED();
 
-    signal=0;
     // Loop until viewer catches the stop signal
     while (!viewer->wasStopped()) {
 
@@ -126,16 +130,12 @@ int main(int argc, char **argv) {
             viewer->updatePointCloud(p_pcl_point_cloud);
             viewer->spinOnce(10);
 
-            if(signal==1){
-                pcl::io::savePLYFileASCII("test.ply", *p_pcl_point_cloud);
-                std::cout << "---------- SAVE DATA !!!!! ----------" << std::endl;
-                signal=0;
-            }
-
         } else {
             sleep_ms(1);
         }
     }
+
+    //pcl::io::savePLYFileASCII("test.ply", *p_pcl_point_cloud);
 
     // Close the viewer
     viewer->close();
@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
 /**
  *  This functions start the ZED's thread that grab images and data.
  **/
-void startZED() {
+void CaptureZED::startZED() {
     // Start the thread for grabbing ZED data
     stop_signal = false;
     has_data = false;
@@ -194,12 +194,6 @@ void run() {
             printf("Orientation: Ox: %.3f, Oy: %.3f, Oz: %.3f, Ow: %.3f\n", zed_pose.getOrientation().ox,
                     zed_pose.getOrientation().oy, zed_pose.getOrientation().oz, zed_pose.getOrientation().ow);
 
-            Eigen::Quaternionf q;
-
-        
-
-
-            
             if (zed_mini) { // Display IMU data
 
                  // Get IMU data
@@ -228,7 +222,7 @@ void run() {
 /**
  *  This function frees and close the ZED, its callback(thread) and the viewer
  **/
-void closeZED() {
+void CaptureZED::closeZED() {
     // Stop the thread
     stop_signal = true;
     zed_callback.join();
@@ -258,4 +252,12 @@ inline float convertColor(float colorIn) {
     unsigned char *color_uchar = (unsigned char *) &color_uint;
     color_uint = ((uint32_t) color_uchar[0] << 16 | (uint32_t) color_uchar[1] << 8 | (uint32_t) color_uchar[2]);
     return *reinterpret_cast<float *> (&color_uint);
+}
+
+int main(int argc, char *argv[]){
+
+    CaptureZED ZED;
+    ZED.runZED();
+
+    return 0;
 }
