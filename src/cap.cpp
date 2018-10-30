@@ -90,7 +90,7 @@ void CaptureZED::runZED() {
     p_pcl_point_cloud->points.resize(zed.getResolution().area());
 
     // Create the PCL point cloud visualizer
-    std::shared_ptr<pcl::visualization::PCLVisualizer> viewer = createRGBVisualizer(p_pcl_point_cloud);
+    std::shared_ptr<pcl::visualization::PCLVisualizer> viewer = setViewer(p_pcl_point_cloud);
 
     while (!viewer->wasStopped()) {
 
@@ -154,8 +154,9 @@ void CaptureZED::saveRotation() {
     myfile.open("example.csv");
     myfile << R[0] << "," << R[1] << "," R[2] << "," \
            << R[3] << "," << R[4] << "," R[5] << "," \
-           << R[6] << "," << R[7] << "," R[8] << "\n" << std::endl;
+           << R[6] << "," << R[7] << "," R[8] << std::endl;
     myfile.close();
+    std::cout<< "----- SAVE Rotation to CSV file -----" << std::endl;
 
 }
 
@@ -240,10 +241,10 @@ void CaptureZED::closeZED() {
 /**
  *  This function creates a PCL visualizer
  **/
-shared_ptr<pcl::visualization::PCLVisualizer> CaptureZED::createRGBVisualizer(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud) {
+std::shared_ptr<pcl::visualization::PCLVisualizer> CaptureZED::setViewer(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud) {
 
     // Open 3D viewer and add point cloud
-    shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("PCL ZED 3D Viewer"));
+    std::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("PCL ZED 3D Viewer"));
     viewer->setBackgroundColor(0.12, 0.12, 0.12);
     pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
     viewer->addPointCloud<pcl::PointXYZRGB>(cloud, rgb);
