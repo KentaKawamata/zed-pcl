@@ -62,6 +62,30 @@ void closeZED();
 shared_ptr<pcl::visualization::PCLVisualizer> createRGBVisualizer(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud);
 inline float convertColor(float colorIn);
 
+void saveRotation(sl::Pose zed_pose) {
+
+    std::vector<float> R(9);
+
+    R[0] = zed_pose.getRotation().r00;
+    R[1] = zed_pose.getRotation().r01;
+    R[2] = zed_pose.getRotation().r02;
+    R[3] = zed_pose.getRotation().r10;
+    R[4] = zed_pose.getRotation().r11;
+    R[5] = zed_pose.getRotation().r12;
+    R[6] = zed_pose.getRotation().r20;
+    R[7] = zed_pose.getRotation().r21;
+    R[8] = zed_pose.getRotation().r22;
+
+    std::ofstream myfile;
+    myfile.open("example.csv");
+    myfile << R[0] << "," << R[1] << "," << R[2] << "," \
+           << R[3] << "," << R[4] << "," << R[5] << "," \
+           << R[6] << "," << R[7] << "," << R[8] << "\n" << std::endl;
+    myfile.close();
+
+}
+
+
 void keyboardEvent(const pcl::visualization::KeyboardEvent &event, void *nothing) {
 
     if(event.getKeySym() == "space" && event.keyDown()){
@@ -96,12 +120,29 @@ int main(int argc, char **argv) {
     viewer->registerKeyboardCallback(&keyboardEvent, (void*)NULL);
 
     // Start ZED callback
-    startZED();
+   startZED();
+ 
+    // Enable positional tracking with default parameters
+    TrackingParameters tracking_parameters;
+    ERROR_CODE tr_err = zed.enableTracking(tracking_parameters);
+    if (tr_err != SUCCESS) {
+        cout << toString(err) << endl;
+        zed.close();
+        return 1;
+    }
+    // Track the camera position during 1000 frames
+    Pose zed_pose;
+    // Check if the camera is a ZED M and therefore if an IMU is available
+    bool zed_mini = (zed.getCameraInformation().camera_model == MODEL_ZED_M);
+    IMUData imu_data;
 
     signal=0;
     // Loop until viewer catches the stop signal
     while (!viewer->wasStopped()) {
 
+        // Get the pose of the left eye of the camera with reference to the world frame
+        zed.getPosition(zed_pose, REFERENCE_FRAME_WORLD);
+        
         // Try to lock the data if possible (not in use). Otherwise, do nothing.
         if (mutex_input.try_lock()) {
             float *p_data_cloud = data_cloud.getPtr<float>();
@@ -127,6 +168,7 @@ int main(int argc, char **argv) {
             viewer->spinOnce(10);
 
             if(signal==1){
+                saveRotation(zed_pose);
                 pcl::io::savePLYFileASCII("test.ply", *p_pcl_point_cloud);
                 std::cout << "---------- SAVE DATA !!!!! ----------" << std::endl;
                 signal=0;
@@ -165,26 +207,10 @@ void startZED() {
  **/
 void run() {
 
-    // Enable positional tracking with default parameters
-    TrackingParameters tracking_parameters;
-    ERROR_CODE err = zed.enableTracking(tracking_parameters);
-    if (err != SUCCESS) {
-        exit(-1);
-    }
-
-    // Track the camera position during 1000 frames
-    Pose zed_pose;
-
-    // Check if the camera is a ZED M and therefore if an IMU is available
-    bool zed_mini = (zed.getCameraInformation().camera_model == MODEL_ZED_M);
-    IMUData imu_data;
-
-    
-
     while (!stop_signal) {
         if (zed.grab(SENSING_MODE_STANDARD) == SUCCESS) {
 
-            zed.getPosition(zed_pose, REFERENCE_FRAME_WORLD); // Get the pose of the left eye of the camera with reference to the world frame
+            /*zed.getPosition(zed_pose, REFERENCE_FRAME_WORLD); // Get the pose of the left eye of the camera with reference to the world frame
 
             // Display the translation and timestamp
             printf("\nTranslation: Tx: %.3f, Ty: %.3f, Tz: %.3f, Timestamp: %llu\n", zed_pose.getTranslation().tx,
@@ -194,12 +220,6 @@ void run() {
             printf("Orientation: Ox: %.3f, Oy: %.3f, Oz: %.3f, Ow: %.3f\n", zed_pose.getOrientation().ox,
                     zed_pose.getOrientation().oy, zed_pose.getOrientation().oz, zed_pose.getOrientation().ow);
 
-            Eigen::Quaternionf q;
-
-        
-
-
-            
             if (zed_mini) { // Display IMU data
 
                  // Get IMU data
@@ -211,7 +231,7 @@ void run() {
                 // Raw acceleration
                 printf("IMU Acceleration: x: %.3f, y: %.3f, z: %.3f\n", imu_data.linear_acceleration.x,
                         imu_data.linear_acceleration.y, imu_data.linear_acceleration.z);
-            }
+            }*/
          //}
 
         //if (zed.grab(SENSING_MODE_STANDARD) == SUCCESS) {
