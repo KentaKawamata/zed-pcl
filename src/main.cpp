@@ -22,25 +22,18 @@
  ** This sample demonstrates how to use PCL (Point Cloud Library) with the ZED SDK **
  ************************************************************************************/
 
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <vector>
+
 // ZED includes
 #include <sl_zed/Camera.hpp>
 
 // PCL includes
-// Undef on Win32 min/max for PCL
-#ifdef _WIN32
-#undef max
-#undef min
-#endif
 #include <pcl/common/common_headers.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/io/ply_io.h>
-
-#include <Eigen/Dense>
-#include <Eigen/Geometry>
-
-// Sample includes
-#include <thread>
-#include <mutex>
 
 // Namespace
 using namespace sl;
@@ -62,9 +55,9 @@ void closeZED();
 shared_ptr<pcl::visualization::PCLVisualizer> createRGBVisualizer(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud);
 inline float convertColor(float colorIn);
 
-void saveRotation(sl::Pose zed_pose) {
+void saveRotation(sl::Pose zed_pose, std::string name) {
 
-    std::vector<float> R(9);
+    std::vector<float> R(12);
 
     R[0] = zed_pose.getRotation().r00;
     R[1] = zed_pose.getRotation().r01;
@@ -75,12 +68,18 @@ void saveRotation(sl::Pose zed_pose) {
     R[6] = zed_pose.getRotation().r20;
     R[7] = zed_pose.getRotation().r21;
     R[8] = zed_pose.getRotation().r22;
+    R[9] = zed_pose.getTranslation().tx;
+    R[10] = zed_pose.getTranslation().ty;
+    R[11] = zed_pose.getTranslation().tz;
 
     std::ofstream myfile;
-    myfile.open("example.csv");
+    const std::string filename = "./rotationdata/" + name + ".csv";
+    std::cout << filename << std::endl;
+    myfile.open(filename);
     myfile << R[0] << "," << R[1] << "," << R[2] << "," \
            << R[3] << "," << R[4] << "," << R[5] << "," \
-           << R[6] << "," << R[7] << "," << R[8] << "\n" << std::endl;
+           << R[6] << "," << R[7] << "," << R[8] << "," \
+           << R[9] << "," << R[10] << "," << R[11] << std::endl;
     myfile.close();
 
 }
@@ -120,7 +119,7 @@ int main(int argc, char **argv) {
     viewer->registerKeyboardCallback(&keyboardEvent, (void*)NULL);
 
     // Start ZED callback
-   startZED();
+    startZED();
  
     // Enable positional tracking with default parameters
     TrackingParameters tracking_parameters;
@@ -137,6 +136,7 @@ int main(int argc, char **argv) {
     IMUData imu_data;
 
     signal=0;
+    int num=0;
     // Loop until viewer catches the stop signal
     while (!viewer->wasStopped()) {
 
@@ -168,10 +168,14 @@ int main(int argc, char **argv) {
             viewer->spinOnce(10);
 
             if(signal==1){
-                saveRotation(zed_pose);
-                pcl::io::savePLYFileASCII("test.ply", *p_pcl_point_cloud);
+                std::string filename = "test_" + std::to_string(num);
+                saveRotation(zed_pose, filename);
+                std::string plyfile = "./pointdata/" + filename + ".ply";
+                std::cout << plyfile << std::endl;
+                pcl::io::savePLYFileASCII(plyfile, *p_pcl_point_cloud);
                 std::cout << "---------- SAVE DATA !!!!! ----------" << std::endl;
                 signal=0;
+                num++;
             }
 
         } else {
