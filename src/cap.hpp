@@ -49,7 +49,7 @@ public:
     void setparam();
     void setIMU();
     void saveRotation();
-    std::shared_ptr<pcl::visualization::PCLVisualizer> createRGBVisualizer(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud);
+    std::shared_ptr<pcl::visualization::PCLVisualizer> setViewer(pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr cloud);
     inline float convertColor(float colorIn);
 
 };
