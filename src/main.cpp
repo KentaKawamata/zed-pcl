@@ -93,7 +93,7 @@ void keyboardEvent(const pcl::visualization::KeyboardEvent &event, void *nothing
 }
 
 // Main process
-int main(int argc, char **argv) {
+int main(int argc, char *argv[]) {
 
     InitParameters init_params;
     init_params.camera_resolution = RESOLUTION_VGA;
@@ -110,24 +110,23 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+
     // Allocate PCL point cloud at the resolution
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr p_pcl_point_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
     p_pcl_point_cloud->points.resize(zed.getResolution().area());
 
     // Create the PCL point cloud visualizer
     shared_ptr<pcl::visualization::PCLVisualizer> viewer = createRGBVisualizer(p_pcl_point_cloud);
-    viewer->registerKeyboardCallback(&keyboardEvent, (void*)NULL);
 
     // Start ZED callback
     startZED();
  
     // Enable positional tracking with default parameters
-    TrackingParameters tracking_parameters;
-    ERROR_CODE tr_err = zed.enableTracking(tracking_parameters);
-    if (tr_err != SUCCESS) {
-        cout << toString(err) << endl;
-        zed.close();
-        return 1;
+    sl::TrackingParameters tracking_parameters;
+    err = zed.enableTracking(tracking_parameters);
+    std::cout << "????????????????????????" << std::endl;
+    if (err != sl::SUCCESS) {
+        std::exit(-1);
     }
     // Track the camera position during 1000 frames
     Pose zed_pose;
@@ -168,7 +167,8 @@ int main(int argc, char **argv) {
             viewer->spinOnce(10);
 
             if(signal==1){
-                std::string filename = "test_" + std::to_string(num);
+                std::string file(argv[1]);
+                std::string filename =  file + "_" + std::to_string(num);
                 saveRotation(zed_pose, filename);
                 std::string plyfile = "./pointdata/" + filename + ".ply";
                 std::cout << plyfile << std::endl;
@@ -214,31 +214,6 @@ void run() {
     while (!stop_signal) {
         if (zed.grab(SENSING_MODE_STANDARD) == SUCCESS) {
 
-            /*zed.getPosition(zed_pose, REFERENCE_FRAME_WORLD); // Get the pose of the left eye of the camera with reference to the world frame
-
-            // Display the translation and timestamp
-            printf("\nTranslation: Tx: %.3f, Ty: %.3f, Tz: %.3f, Timestamp: %llu\n", zed_pose.getTranslation().tx,
-                    zed_pose.getTranslation().ty, zed_pose.getTranslation().tz, zed_pose.timestamp);
-
-            // Display the orientation quaternion
-            printf("Orientation: Ox: %.3f, Oy: %.3f, Oz: %.3f, Ow: %.3f\n", zed_pose.getOrientation().ox,
-                    zed_pose.getOrientation().oy, zed_pose.getOrientation().oz, zed_pose.getOrientation().ow);
-
-            if (zed_mini) { // Display IMU data
-
-                 // Get IMU data
-                zed.getIMUData(imu_data, TIME_REFERENCE_IMAGE);
-
-                // Filtered orientation quaternion
-                printf("IMU Orientation: Ox: %.3f, Oy: %.3f, Oz: %.3f, Ow: %.3f\n", imu_data.getOrientation().ox,
-                        imu_data.getOrientation().oy, imu_data.getOrientation().oz, zed_pose.getOrientation().ow);
-                // Raw acceleration
-                printf("IMU Acceleration: x: %.3f, y: %.3f, z: %.3f\n", imu_data.linear_acceleration.x,
-                        imu_data.linear_acceleration.y, imu_data.linear_acceleration.z);
-            }*/
-         //}
-
-        //if (zed.grab(SENSING_MODE_STANDARD) == SUCCESS) {
             mutex_input.lock(); // To prevent from data corruption
             zed.retrieveMeasure(data_cloud, MEASURE_XYZRGBA);
             mutex_input.unlock();
@@ -271,6 +246,7 @@ shared_ptr<pcl::visualization::PCLVisualizer> createRGBVisualizer(pcl::PointClou
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1.5);
     viewer->addCoordinateSystem(1.0);
     viewer->initCameraParameters();
+    viewer->registerKeyboardCallback(&keyboardEvent, (void*)NULL);
     return (viewer);
 }
 
